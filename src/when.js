@@ -9,7 +9,7 @@ const getCallLine = () => new Error().stack.split('\n')[4]
  */
 let equals = () => {}
 expect.extend({
-  __capture_equals__() {
+  __capture_equals__ () {
     // @ts-ignore
     equals = this.equals
     return { pass: true }
@@ -66,7 +66,7 @@ const checkArgumentMatchers = (expectCall, args) => (match, matcher, i) => {
 const NO_CALLED_WITH_YET = Symbol('NO_CALLED_WITH')
 
 class WhenMock {
-  constructor(fn) {
+  constructor (fn) {
     // Incrementing ids assigned to each call mock to help with sorting as new mocks are added
     this.nextCallMockId = 0
     this.fn = fn
@@ -123,10 +123,11 @@ class WhenMock {
             // check for the special property name
             matchers[0]._isAllArgsFunctionMatcher === true
           ) {
-            if (matchers.length > 1)
+            if (matchers.length > 1) {
               throw new Error(
                 'When using when.allArgs, it must be the one and only matcher provided to calledWith. You have incorrectly provided other matchers along with when.allArgs.'
               )
+            }
             isMatch = checkArgumentMatchers(expectCall, [args])(true, matchers[0], 0)
           } else {
             isMatch = args.length === matchers.length && matchers.reduce(checkArgumentMatchers(expectCall, args), true)
@@ -230,7 +231,7 @@ const resetAllWhenMocks = () => {
   registry = new Set()
 }
 
-function resetWhenMocksOnFn(fn) {
+function resetWhenMocksOnFn (fn) {
   fn.mockImplementation(fn.__whenMock__._origMock)
   fn.__whenMock__ = undefined
   registry.delete(fn)
