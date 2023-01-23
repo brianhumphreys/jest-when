@@ -2,14 +2,15 @@ const assert = require('assert')
 
 let registry = new Set()
 
-const getCallLine = () => (new Error()).stack.split('\n')[4]
+const getCallLine = () => new Error().stack.split('\n')[4]
 
 /**
  * A hack to capture a reference to the `equals` jasmineUtil
  */
 let equals = () => {}
 expect.extend({
-  __capture_equals__ () {
+  __capture_equals__() {
+    // @ts-ignore
     equals = this.equals
     return { pass: true }
   }
@@ -24,10 +25,18 @@ delete global[JEST_MATCHERS_OBJECT].matchers.__capture_equals__
  * End hack
  */
 
+const any = () => {
+  return 'thisParameterCanBeAnything'
+}
+
 const checkArgumentMatchers = (expectCall, args) => (match, matcher, i) => {
   // Propagate failure to the end
   if (!match) {
     return false
+  }
+
+  if (matcher === any()) {
+    return true
   }
 
   const arg = args[i]
@@ -38,7 +47,9 @@ const checkArgumentMatchers = (expectCall, args) => (match, matcher, i) => {
   if (expectCall) {
     if (isFunctionMatcher) {
       const isMatch = matcher(arg)
-      const msg = `Failed function matcher within expectCalledWith: ${matcher.name}(${JSON.stringify(arg)}) did not return true\n\n\n...rest of the stack...`
+      const msg = `Failed function matcher within expectCalledWith: ${matcher.name}(${JSON.stringify(
+        arg
+      )}) did not return true\n\n\n...rest of the stack...`
       assert.equal(isMatch, true, msg)
     } else {
       expect(arg).toEqual(matcher)
@@ -55,7 +66,7 @@ const checkArgumentMatchers = (expectCall, args) => (match, matcher, i) => {
 const NO_CALLED_WITH_YET = Symbol('NO_CALLED_WITH')
 
 class WhenMock {
-  constructor (fn) {
+  constructor(fn) {
     // Incrementing ids assigned to each call mock to help with sorting as new mocks are added
     this.nextCallMockId = 0
     this.fn = fn
@@ -64,7 +75,7 @@ class WhenMock {
     this._origMock = fn.getMockImplementation()
     this._defaultImplementation = null
 
-    const _mockImplementation = (matchers, expectCall, once = false) => (mockImplementation) => {
+    const _mockImplementation = (matchers, expectCall, once = false) => mockImplementation => {
       if (matchers[0] === NO_CALLED_WITH_YET) {
         this._defaultImplementation = mockImplementation
       }
@@ -72,8 +83,16 @@ class WhenMock {
       // * call mocks with equal matchers are removed
       // * `once` mocks are used prioritized
       this.callMocks = this.callMocks
-        .filter((callMock) => once || callMock.once || !equals(callMock.matchers, matchers))
-        .concat({ matchers, mockImplementation, expectCall, once, called: false, id: this.nextCallMockId, callLine: getCallLine() })
+        .filter(callMock => once || callMock.once || !equals(callMock.matchers, matchers))
+        .concat({
+          matchers,
+          mockImplementation,
+          expectCall,
+          once,
+          called: false,
+          id: this.nextCallMockId,
+          callLine: getCallLine()
+        })
         .sort((a, b) => {
           // Once mocks should appear before the rest
           if (a.once !== b.once) {
@@ -94,20 +113,23 @@ class WhenMock {
 
           let isMatch = false
 
-          if (matchers && matchers[0] &&
-              // is a possible all args matcher object
-              (typeof matchers[0] === 'function' || typeof matchers[0] === 'object') &&
-              // ensure not a proxy
-              '_isAllArgsFunctionMatcher' in matchers[0] &&
-              // check for the special property name
-              matchers[0]._isAllArgsFunctionMatcher === true
+          if (
+            matchers &&
+            matchers[0] &&
+            // is a possible all args matcher object
+            (typeof matchers[0] === 'function' || typeof matchers[0] === 'object') &&
+            // ensure not a proxy
+            '_isAllArgsFunctionMatcher' in matchers[0] &&
+            // check for the special property name
+            matchers[0]._isAllArgsFunctionMatcher === true
           ) {
-            if (matchers.length > 1) throw new Error('When using when.allArgs, it must be the one and only matcher provided to calledWith. You have incorrectly provided other matchers along with when.allArgs.')
+            if (matchers.length > 1)
+              throw new Error(
+                'When using when.allArgs, it must be the one and only matcher provided to calledWith. You have incorrectly provided other matchers along with when.allArgs.'
+              )
             isMatch = checkArgumentMatchers(expectCall, [args])(true, matchers[0], 0)
           } else {
-            isMatch =
-              args.length === matchers.length &&
-              matchers.reduce(checkArgumentMatchers(expectCall, args), true)
+            isMatch = args.length === matchers.length && matchers.reduce(checkArgumentMatchers(expectCall, args), true)
           }
 
           if (isMatch && typeof mockImplementation === 'function') {
@@ -135,7 +157,8 @@ class WhenMock {
       mockReturnValue: returnValue => _mockImplementation(matchers, expectCall)(() => returnValue),
       mockReturnValueOnce: returnValue => _mockImplementation(matchers, expectCall, true)(() => returnValue),
       mockResolvedValue: returnValue => _mockImplementation(matchers, expectCall)(() => Promise.resolve(returnValue)),
-      mockResolvedValueOnce: returnValue => _mockImplementation(matchers, expectCall, true)(() => Promise.resolve(returnValue)),
+      mockResolvedValueOnce: returnValue =>
+        _mockImplementation(matchers, expectCall, true)(() => Promise.resolve(returnValue)),
       mockRejectedValue: err => _mockImplementation(matchers, expectCall)(() => Promise.reject(err)),
       mockRejectedValueOnce: err => _mockImplementation(matchers, expectCall, true)(() => Promise.reject(err)),
       mockImplementation: implementation => _mockImplementation(matchers, expectCall)(implementation),
@@ -154,7 +177,7 @@ class WhenMock {
     }
     this.defaultReturnValue = returnValue => this.defaultImplementation(() => returnValue)
     this.defaultResolvedValue = returnValue => this.defaultReturnValue(Promise.resolve(returnValue))
-    this.defaultRejectedValue = err => this.defaultReturnValue(Promise.reject(err))
+    this.defaultRejectedValue = err => this.defaultResolvedValue(Promise.reject(err))
     this.mockImplementation = this.defaultImplementation
     this.mockReturnValue = this.defaultReturnValue
     this.mockResolvedValue = this.defaultResolvedValue
@@ -169,7 +192,7 @@ class WhenMock {
   }
 }
 
-const when = (fn) => {
+const when = fn => {
   // This bit is for when you use `when` to make a WhenMock
   // when(fn) <-- This one
   //     .calledWith(when(numberIsGreaterThanZero)) <-- Not this one
@@ -196,7 +219,7 @@ const when = (fn) => {
   }
 }
 
-when.allArgs = (fn) => {
+when.allArgs = fn => {
   fn._isFunctionMatcher = true
   fn._isAllArgsFunctionMatcher = true
   return fn
@@ -207,21 +230,31 @@ const resetAllWhenMocks = () => {
   registry = new Set()
 }
 
-function resetWhenMocksOnFn (fn) {
+function resetWhenMocksOnFn(fn) {
   fn.mockImplementation(fn.__whenMock__._origMock)
   fn.__whenMock__ = undefined
   registry.delete(fn)
 }
 
 const verifyAllWhenMocksCalled = () => {
-  const [allMocks, calledMocks, uncalledMocks] = Array.from(registry).reduce((acc, fn) => {
-    const mocks = fn.__whenMock__.callMocks
-    const [calledMocks, uncalledMocks] = mocks.reduce((memo, mock) => {
-      memo[mock.called ? 0 : 1].push(mock)
-      return memo
-    }, [[], []])
-    return [[...acc[0], ...mocks], [...acc[1], ...calledMocks], [...acc[2], ...uncalledMocks]]
-  }, [[], [], []])
+  const [allMocks, calledMocks, uncalledMocks] = Array.from(registry).reduce(
+    (acc, fn) => {
+      const mocks = fn.__whenMock__.callMocks
+      const [calledMocks, uncalledMocks] = mocks.reduce(
+        (memo, mock) => {
+          memo[mock.called ? 0 : 1].push(mock)
+          return memo
+        },
+        [[], []]
+      )
+      return [
+        [...acc[0], ...mocks],
+        [...acc[1], ...calledMocks],
+        [...acc[2], ...uncalledMocks]
+      ]
+    },
+    [[], [], []]
+  )
 
   const callLines = uncalledMocks
     .filter(m => Boolean(m.callLine))
@@ -237,6 +270,7 @@ when.resetAllWhenMocks = resetAllWhenMocks
 when.verifyAllWhenMocksCalled = verifyAllWhenMocksCalled
 
 module.exports = {
+  any,
   when,
   resetAllWhenMocks,
   verifyAllWhenMocksCalled,

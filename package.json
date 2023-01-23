@@ -1,5 +1,5 @@
 {
-  "name": "jest-when",
+  "name": "when-jest",
   "version": "3.5.2",
   "description": "An extension lib for jest",
   "license": "MIT",
@@ -13,11 +13,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/timkindberg/jest-when/"
+    "url": "https://github.com/brianhumphreys/jest-when/"
   },
   "contributors": [
     "Tim Kindberg <timkindberg@gmail.com>",
-    "Jonas Holtkamp <jonas.holtkamp@senacor.com>"
+    "Jonas Holtkamp <jonas.holtkamp@senacor.com>",
+    "Brian Humphreys <jonas.holtkamp@senacor.com>"
   ],
   "dependencies": {},
   "peerDependencies": {
